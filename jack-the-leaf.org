@@ -1,0 +1,99 @@
+#+OPTIONS: timestamp
+* Action Items
+** Prep
+*** TODO Review next steps for SageMaker in documentation                  :jack:manish:
+DEADLINE: <2018-03-06 Tue>
+*** TODO Push to Github                                                           :jack:
+DEADLINE: <2018-03-06 Tue>
+*** TODO Upload to S3                                                           :manish:
+DEADLINE: <2018-03-06 Tue>
+** Tech
+*** TODO Run through the process with the data subset (~6000 points)
+DEADLINE: <2018-03-06 Tue>
+*** TODO Load the model in Deeplens
+DEADLINE: <2018-03-06 Tue>
+*** TODO Prep ALL the data (.lst, and upload to S3)
+DEADLINE: <2018-03-13 Tue>
+*** TODO Make SageMaker model with full data set
+DEADLINE: <2018-03-13 Tue>
+*** TODO Deploy model to Deeplens
+DEADLINE: <2018-03-13 Tue>
+** Trees
+*** TODO Identify the species for some for some life samples
+DEADLINE: <2018-03-13 Tue> SCHEDULED: <2018-02-27 Tue>
+** Test Deeplens+Model on real leaves
+SCHEDULED: <2018-03-13 Tue>
+
+
+* plant photo data set
+
+|                       | idea 1                                             | idea 2                                             |
+|                       | <50>                                               | <50>                                               |
+|-----------------------+----------------------------------------------------+----------------------------------------------------|
+| initial               | 20GB                                               | 44M                                                |
+| unzipped              | 22GB                                               | 350M                                               |
+| images                | included                                           | download                                           |
+| data point            | jpg + xml                                          | a line in CSV (but need to download the corresponding image) |
+| number of data points | 0.25 mil                                           | 1.1+ mil                                           |
+| image size            | ~100K                                              | ~500K                                              |
+|-----------------------+----------------------------------------------------+----------------------------------------------------|
+| effort needed         | need code to parse the data points to produce .lst file and organize corresponding images | need code to take a subset of points, download and organize corresponding images and produce a .lst file |
+|-----------------------+----------------------------------------------------+----------------------------------------------------|
+| subset size           | 200                                                |                                                    |
+|                       |                                                    |                                                    |
+
+
+#+BEGIN_SRC python
+  # <Image>
+  # 	<FileName>248738.jpg</FileName>
+  # 	<Species>Justicia nyassana Lindau</Species>
+  # 	<Origin>eol</Origin>
+  # 	<Author>mark hyde, bart wursten and petra ballings, bart wursten, flora of zimbabwe</Author>
+  # 	<Content></Content>
+  # 	<Genus>Justicia</Genus>
+  # 	<Family>Acanthaceae</Family>
+  # 	<ObservationId>174381</ObservationId>
+  # 	<MediaId>248738</MediaId>
+  # 	<YearInCLEF>PlantCLEF2017</YearInCLEF>
+  # 	<LearnTag>Train</LearnTag>
+  # 	<ClassId>2365</ClassId>
+  # </Image>
+
+  # https://docs.aws.amazon.com/sagemaker/latest/dg/image-classification.html
+
+  # A .lst file is a tab-separated file with three columns that contains
+  # a list of image files. The first column specifies the image index,
+  # the second column specifies the class label index for the image, and
+  # the third column specifies the relative path of the image file. The
+  # image index in the first column must be unique across all of the
+  # images.
+
+  from bs4 import BeautifulSoup
+  import os
+  import os.path
+
+  lst_filename = "all.lst"
+  lst_contents = []
+  index = 1
+
+  def parseme(f):
+      r = open(f).read()
+      x = BeautifulSoup(r, features="xml")
+      fn = x.Image.FileName.contents[0]
+      klass = x.Image.ClassId.contents[0]
+      return [fn, klass]
+
+
+  for root, dirs, files in os.walk("."):
+      for f in files:
+          extension = os.path.splitext(f)[1]
+          if extension == ".xml":
+              fn, klass = parseme(f)
+              lst_contents.append(str(str(index) + "\t" + klass + "\t" + "./" + fn + "\n"))
+              index += 1
+
+  with open(lst_filename, "w") as f:
+      for line in lst_contents:
+          f.write(line)
+
+#+END_SRC
